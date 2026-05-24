@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Network IDS — CodeAlpha Task 4</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  header { display:flex; align-items:center; gap:12px; padding:1rem 1.5rem;
+    background:#161b27; border-bottom:1px solid #2d3748; }
+  header h1 { font-size:16px; font-weight:600; color:#fff; }
+  .badge { font-size:11px; padding:3px 8px; border-radius:6px; font-weight:600; }
+  .b-red   { background:#3d1515; color:#fc8181; }
+  .b-amber { background:#3d2a00; color:#f6ad55; }
+  .b-blue  { background:#1e3a5f; color:#63b3ed; }
+  .b-gray  { background:#2d3748; color:#a0aec0; }
+  .b-green { background:#1a3a2a; color:#68d391; }
+  #live-dot { display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:#fc8181; animation:pulse 1s infinite; margin-right:4px; }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+  .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:1rem 1.5rem; }
+  .stat { background:#161b27; border:1px solid #2d3748; border-radius:10px; padding:14px; }
+  .stat-val { font-size:28px; font-weight:700; }
+  .stat-lbl { font-size:11px; color:#718096; margin-top:3px; text-transform:uppercase; letter-spacing:.05em; }
+
+  .tl-wrap { padding:0 1.5rem .75rem; }
+  .tl-label { font-size:11px; font-weight:600; color:#718096; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+  .tl-track { display:flex; align-items:flex-end; gap:2px; height:50px;
+    background:#161b27; border:1px solid #2d3748; border-radius:8px; padding:6px 8px; }
+  .tl-bar { flex:1; border-radius:2px; min-height:3px; transition:height .3s; }
+
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:0 1.5rem 1rem; }
+  .card { background:#161b27; border:1px solid #2d3748; border-radius:10px; overflow:hidden; }
+  .card-hdr { font-size:11px; font-weight:600; color:#718096; padding:10px 14px;
+    border-bottom:1px solid #2d3748; text-transform:uppercase; letter-spacing:.05em; }
+
+  .alert-item { display:flex; align-items:flex-start; gap:10px; padding:9px 14px;
+    border-bottom:1px solid #1a202c; animation:fadein .4s ease; }
+  @keyframes fadein{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .alert-item:last-child { border-bottom:none; }
+  .sev-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+  .s-CRITICAL { background:#fc8181; box-shadow:0 0 6px #fc818166; }
+  .s-HIGH     { background:#f6ad55; }
+  .s-MEDIUM   { background:#63b3ed; }
+  .s-LOW      { background:#718096; }
+  .alert-type { font-size:12px; font-weight:600; color:#e2e8f0; }
+  .alert-sev  { font-size:10px; font-weight:600; margin-left:6px; }
+  .sv-CRITICAL { color:#fc8181; } .sv-HIGH { color:#f6ad55; } .sv-MEDIUM { color:#63b3ed; }
+  .alert-meta { font-size:11px; color:#718096; font-family:monospace; margin-top:2px; }
+
+  .bar2 { display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid #1a202c; }
+  .bar2:last-child { border-bottom:none; }
+  .bar2-lbl { font-size:12px; color:#cbd5e0; flex:1; }
+  .bar2-track { width:80px; height:7px; background:#2d3748; border-radius:4px; overflow:hidden; }
+  .bar2-fill { height:100%; border-radius:4px; background:#fc8181; }
+  .bar2-n { font-size:12px; font-family:monospace; color:#718096; min-width:24px; text-align:right; }
+
+  .modules { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:0 1.5rem 1rem; }
+  .mod { background:#161b27; border:1px solid #2d3748; border-radius:8px;
+    padding:10px 12px; display:flex; align-items:center; gap:10px; }
+  .mod i { font-size:18px; color:#63b3ed; }
+  .mod-name { font-size:12px; color:#e2e8f0; font-weight:500; }
+  .mod-on { font-size:10px; color:#68d391; font-weight:600; margin-top:1px; }
+
+  .toolbar { display:flex; gap:8px; padding:0 1.5rem 1rem; }
+  .btn { font-size:13px; padding:6px 14px; border-radius:7px; border:1px solid #2d3748;
+    background:transparent; color:#e2e8f0; cursor:pointer; display:flex; align-items:center; gap:5px; }
+  .btn:hover { background:#2d3748; }
+  .btn-danger { border-color:#9b2c2c; color:#fc8181; }
+
+  footer { text-align:center; padding:1rem; font-size:12px; color:#4a5568; border-top:1px solid #2d3748; }
+</style>
+</head>
+<body>
+
+<header>
+  <i class="ti ti-shield-lock" style="font-size:22px;color:#fc8181;"></i>
+  <h1>Network Intrusion Detection System</h1>
+  <span class="badge b-blue">CodeAlpha — Task 4</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+    <span id="clock" style="font-size:12px;color:#718096;font-family:monospace;"></span>
+    <span class="badge b-red" id="status-badge"><span id="live-dot"></span>MONITORING</span>
+    <button class="btn" id="toggle-btn" onclick="toggleNIDS()">
+      <i class="ti ti-player-pause"></i> Pause
+    </button>
+  </div>
+</header>
+
+<div class="stat-grid">
+  <div class="stat"><div class="stat-val" style="color:#fc8181;" id="n-crit">0</div><div class="stat-lbl">Critical</div></div>
+  <div class="stat"><div class="stat-val" style="color:#f6ad55;" id="n-high">0</div><div class="stat-lbl">High</div></div>
+  <div class="stat"><div class="stat-val" style="color:#63b3ed;" id="n-med">0</div><div class="stat-lbl">Medium</div></div>
+  <div class="stat"><div class="stat-val" id="n-total">0</div><div class="stat-lbl">Total alertes</div></div>
+</div>
+
+<div class="tl-wrap">
+  <div class="tl-label">Activité des menaces (30 dernières secondes)</div>
+  <div class="tl-track" id="tl-track"></div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-hdr"><i class="ti ti-bell" style="font-size:13px;margin-right:5px;"></i>Alertes en temps réel</div>
+    <div id="alert-list" style="max-height:300px;overflow-y:auto;"></div>
+  </div>
+  <div class="card">
+    <div class="card-hdr"><i class="ti ti-chart-bar" style="font-size:13px;margin-right:5px;"></i>Top menaces détectées</div>
+    <div id="threat-bars"></div>
+  </div>
+</div>
+
+<div class="modules">
+  <div class="mod"><i class="ti ti-scan"></i><div><div class="mod-name">Port Scan</div><div class="mod-on">● actif</div></div></div>
+  <div class="mod"><i class="ti ti-wave-sine"></i><div><div class="mod-name">DoS / DDoS</div><div class="mod-on">● actif</div></div></div>
+  <div class="mod"><i class="ti ti-network"></i><div><div class="mod-name">ARP Spoofing</div><div class="mod-on">● actif</div></div></div>
+  <div class="mod"><i class="ti ti-dns"></i><div><div class="mod-name">DNS Exfiltration</div><div class="mod-on">● actif</div></div></div>
+  <div class="mod"><i class="ti ti-lock-open"></i><div><div class="mod-name">Brute Force</div><div class="mod-on">● actif</div></div></div>
+  <div class="mod"><i class="ti ti-code"></i><div><div class="mod-name">SQLi / XSS</div><div class="mod-on">● actif</div></div></div>
+</div>
+
+<div class="toolbar">
+  <button class="btn btn-danger" onclick="clearAlerts()">
+    <i class="ti ti-trash"></i> Vider alertes
+  </button>
+</div>
+
+<footer>CodeAlpha Cybersecurity Internship — Task 4 : Network Intrusion Detection System &nbsp;|&nbsp; dashboard.html</footer>
+
+<script>
+const ALERTS_DEF=[
+  {sev:'CRITICAL',type:'SYN Flood (DoS)',    src:'192.168.1.200', detail:'220 pkts/s sur port 80'},
+  {sev:'HIGH',    type:'Port Scan',           src:'10.0.0.44',     detail:'SYN scan — 18 ports en 5s'},
+  {sev:'CRITICAL',type:'ARP Spoofing',        src:'192.168.1.1',   detail:'2 MACs pour la même IP'},
+  {sev:'HIGH',    type:'SSH Brute Force',     src:'172.16.0.12',   detail:'14 tentatives sur port 22'},
+  {sev:'MEDIUM',  type:'SQL Injection',       src:'10.0.0.77',     detail:"Pattern: ' OR '1'='1"},
+  {sev:'CRITICAL',type:'ICMP Flood',          src:'192.168.2.99',  detail:'115 pkts/s flood ICMP'},
+  {sev:'HIGH',    type:'DNS Exfiltration',    src:'10.0.0.5',      detail:'Requête DNS de 72 chars'},
+  {sev:'MEDIUM',  type:'XSS Attempt',         src:'192.168.1.88',  detail:'<script> dans HTTP body'},
+  {sev:'HIGH',    type:'FTP Brute Force',     src:'172.16.0.33',   detail:'11 tentatives port 21'},
+  {sev:'MEDIUM',  type:'Path Traversal',      src:'10.0.0.200',    detail:'Pattern ../ détecté'},
+];
+
+let running=true, alerts=[], threatCounts={}, tlData=new Array(30).fill(0);
+let counters={crit:0,high:0,med:0,total:0};
+
+function pad(n){return String(n).padStart(2,'0');}
+function timeNow(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+
+function addAlert(){
+  const def=ALERTS_DEF[Math.floor(Math.random()*ALERTS_DEF.length)];
+  const a={...def,time:timeNow()};
+  alerts.unshift(a); if(alerts.length>30)alerts.pop();
+  threatCounts[a.type]=(threatCounts[a.type]||0)+1;
+  counters.total++;
+  if(a.sev==='CRITICAL')counters.crit++;
+  else if(a.sev==='HIGH')counters.high++;
+  else if(a.sev==='MEDIUM')counters.med++;
+  tlData.push(counters.total); if(tlData.length>30)tlData.shift();
+}
+
+function renderAlerts(){
+  document.getElementById('alert-list').innerHTML=alerts.slice(0,10).map(a=>`
+    <div class="alert-item">
+      <div class="sev-dot s-${a.sev}"></div>
+      <div>
+        <div class="alert-type">${a.type}<span class="alert-sev sv-${a.sev}">${a.sev}</span></div>
+        <div class="alert-meta">${a.src} · ${a.time} · ${a.detail}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderThreatBars(){
+  const sorted=Object.entries(threatCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const max=sorted[0]?.[1]||1;
+  document.getElementById('threat-bars').innerHTML=sorted.map(([name,count])=>`
+    <div class="bar2">
+      <div class="bar2-lbl">${name}</div>
+      <div class="bar2-track"><div class="bar2-fill" style="width:${Math.round(count/max*100)}%;"></div></div>
+      <div class="bar2-n">${count}</div>
+    </div>`).join('');
+}
+
+function renderTimeline(){
+  const max=Math.max(...tlData,1);
+  document.getElementById('tl-track').innerHTML=tlData.map(v=>{
+    const h=Math.max(3,Math.round(v/max*38));
+    const col=v>max*.7?'#fc8181':v>max*.4?'#f6ad55':'#63b3ed';
+    return `<div class="tl-bar" style="height:${h}px;background:${col};"></div>`;
+  }).join('');
+}
+
+function updateStats(){
+  document.getElementById('n-crit').textContent=counters.crit;
+  document.getElementById('n-high').textContent=counters.high;
+  document.getElementById('n-med').textContent=counters.med;
+  document.getElementById('n-total').textContent=counters.total;
+}
+
+function tick(){
+  if(!running){tlData.push(0);if(tlData.length>30)tlData.shift();renderTimeline();return;}
+  if(Math.random()<0.6)addAlert();
+  updateStats();renderAlerts();renderThreatBars();renderTimeline();
+}
+
+function toggleNIDS(){
+  running=!running;
+  const s=document.getElementById('status-badge');
+  const b=document.getElementById('toggle-btn');
+  if(running){
+    b.innerHTML='<i class="ti ti-player-pause"></i> Pause';
+    s.className='badge b-red';
+    s.innerHTML='<span id="live-dot"></span>MONITORING';
+  } else {
+    b.innerHTML='<i class="ti ti-player-play"></i> Reprendre';
+    s.className='badge b-gray'; s.textContent='PAUSE';
+  }
+}
+
+function clearAlerts(){alerts=[];threatCounts={};counters={crit:0,high:0,med:0,total:0};tlData=new Array(30).fill(0);updateStats();renderAlerts();renderThreatBars();renderTimeline();}
+
+setInterval(tick,1200);
+setInterval(()=>{document.getElementById('clock').textContent=timeNow();},1000);
+tick();
+</script>
+</body>
+</html>
